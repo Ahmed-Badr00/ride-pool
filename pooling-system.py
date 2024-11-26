@@ -549,6 +549,88 @@ class PoolingSystem:
     def _get_request_by_id(self, trip_id: str) -> Optional[RideRequest]:
         """Get request object by trip ID"""
         return next((r for r in self.all_requests if r.trip_id == trip_id), None)
+    
+    
+    
+    def save_pooling_results(self):
+        """Save detailed pooling results to JSON files"""
+        results_dir = self.output_dir / 'results'
+        results_dir.mkdir(exist_ok=True)
+        
+        # Prepare detailed results for each pooled pair
+        detailed_results = []
+        for result in self.pooling_results:
+            ride1 = self._get_request_by_id(result.ride1_id)
+            ride2 = self._get_request_by_id(result.ride2_id)
+            
+            if ride1 and ride2:
+                detailed_result = {
+                    'pool_id': f"{result.ride1_id}_{result.ride2_id}",
+                    'ride1': {
+                        'trip_id': ride1.trip_id,
+                        'pickup_location': {
+                            'lat': ride1.pickup_lat,
+                            'lng': ride1.pickup_lng
+                        },
+                        'dropoff_location': {
+                            'lat': ride1.dropoff_lat,
+                            'lng': ride1.dropoff_lng
+                        },
+                        'pickup_time': ride1.pickup_time.isoformat(),
+                        'demand_score': ride1.demand_score,
+                        'priority_score': ride1.priority_score
+                    },
+                    'ride2': {
+                        'trip_id': ride2.trip_id,
+                        'pickup_location': {
+                            'lat': ride2.pickup_lat,
+                            'lng': ride2.pickup_lng
+                        },
+                        'dropoff_location': {
+                            'lat': ride2.dropoff_lat,
+                            'lng': ride2.dropoff_lng
+                        },
+                        'pickup_time': ride2.pickup_time.isoformat(),
+                        'demand_score': ride2.demand_score,
+                        'priority_score': ride2.priority_score
+                    },
+                    'pooling_metrics': {
+                        'total_distance': result.total_distance,
+                        'original_distance': result.original_distance,
+                        'detour_ratio': result.detour_ratio,
+                        'pickup_distance': result.pickup_distance,
+                        'time_difference': result.time_difference,
+                        'order_type': result.order_type,
+                        'estimated_savings': result.estimated_savings,
+                        'passenger_impact_score': result.passenger_impact_score,
+                        'route_efficiency': result.route_efficiency,
+                        'matching_score': result.matching_score
+                    }
+                }
+                detailed_results.append(detailed_result)
+        
+        # Save detailed results
+        with open(results_dir / 'pooling_detailed_results.json', 'w') as f:
+            json.dump(detailed_results, f, indent=2)
+        
+        # Save summary statistics
+        summary_stats = {
+            'total_requests': len(self.all_requests),
+            'total_pooling_events': len(self.pooling_results),
+            'total_pooled_trips': len(self.pooling_results) * 2,
+            'pooling_rate': (len(self.pooling_results) * 2) / len(self.all_requests) if self.all_requests else 0,
+            'average_matching_score': sum(r.matching_score for r in self.pooling_results) / len(self.pooling_results) if self.pooling_results else 0,
+            'average_detour_ratio': sum(r.detour_ratio for r in self.pooling_results) / len(self.pooling_results) if self.pooling_results else 0,
+            'total_distance_saved': sum(r.estimated_savings for r in self.pooling_results),
+            'rejection_statistics': dict(self.analysis_stats)
+        }
+        
+        with open(results_dir / 'pooling_summary_stats.json', 'w') as f:
+            json.dump(summary_stats, f, indent=2)
+        
+        logging.info(f"Saved detailed results to {results_dir / 'pooling_detailed_results.json'}")
+        logging.info(f"Saved summary statistics to {results_dir / 'pooling_summary_stats.json'}")
+
 
 def load_and_process_data(file_path: str) -> List[RideRequest]:
     """Load and process ride data from JSON file"""
@@ -740,6 +822,10 @@ def main():
     # Generate visualizations and reports
     logging.info("Generating analysis and visualizations...")
     pooling_system.visualize_results()
+
+    logging.info("Saving pooling results...")
+    pooling_system.save_pooling_results()
+
 
     # Calculate pooling rate
     total_trips = len(requests)

@@ -1,0 +1,14 @@
+{
+  "total_requests": 5890,
+  "total_pooling_events": 1514,
+  "total_pooled_trips": 3028,
+  "pooling_rate": 0.5140916808149406,
+  "average_matching_score": 1.0,
+  "average_detour_ratio": 0.01831245739785114,
+  "total_distance_saved": 1385643313.7058423,
+  "rejection_statistics": {
+    "total_attempts": 1515,
+    "successful_pools": 1514,
+    "rejected_no_efficient_route": 1
+  }
+}
